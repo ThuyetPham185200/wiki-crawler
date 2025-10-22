@@ -12,7 +12,6 @@ import (
 	tasks "wikicrawler/internal/utils/workers/task"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 type RawDataHandler struct {
@@ -57,36 +56,39 @@ func (r *RawDataHandler) RunningTask() {
 		time.Sleep(10*time.Millisecond - elapsed)
 	}
 }
-
 func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
+	ctx := context.Background()
 	result := data.LinksRes
 
-	// Ensure the source title exists
+	// --- Ensure source title exists (atomic with SETNX) ---
 	if data.TitleQ.ID == "" {
 		data.TitleQ.ID = uuid.New().String()
-
-		// Check Redis cache before inserting
 		cacheKey := "title:" + data.TitleQ.Title
-		exists, _ := r.store.RedisClient.GetClient().Exists(context.Background(), cacheKey).Result()
 
-		if exists == 0 {
+		setOK, err := r.store.RedisClient.GetClient().
+			SetNX(ctx, cacheKey, data.TitleQ.ID, 0).Result()
+		if err != nil {
+			log.Printf("[RawDataHandler] Redis SETNX error for %s: %v", cacheKey, err)
+			return
+		}
+
+		if setOK {
+			// Key was new → safe to insert into DB
 			if err := r.store.TitlesTable.Insert(map[string]interface{}{
 				"title_id": data.TitleQ.ID,
 				"name":     data.TitleQ.Title,
-			}); err == nil {
-				// Cache the title
-				r.store.RedisClient.GetClient().Set(context.Background(), cacheKey, data.TitleQ.ID, 0)
-			} else {
+			}); err != nil {
 				log.Printf("[RawDataHandler] Failed to insert title %s: %v", data.TitleQ.Title, err)
 				return
 			}
 		} else {
-			id, _ := r.store.RedisClient.GetClient().Get(context.Background(), cacheKey).Result()
+			// Key existed → get the stored ID
+			id, _ := r.store.RedisClient.GetClient().Get(ctx, cacheKey).Result()
 			data.TitleQ.ID = id
 		}
 	}
 
-	// Process linked titles
+	// --- Process linked titles ---
 	for _, page := range result.Query.Pages {
 		for _, link := range page.Links {
 			if link.Ns != 0 {
@@ -94,11 +96,17 @@ func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 			}
 
 			titleCacheKey := "title:" + link.Title
+			titleID := uuid.New().String()
 
-			// Check Redis for existing title ID
-			titleID, err := r.store.RedisClient.GetClient().Get(context.Background(), titleCacheKey).Result()
-			if err == redis.Nil {
-				titleID = uuid.New().String()
+			// Atomic create title if not exists
+			setOK, err := r.store.RedisClient.GetClient().
+				SetNX(ctx, titleCacheKey, titleID, 0).Result()
+			if err != nil {
+				log.Printf("[RawDataHandler] Redis SETNX error: %v", err)
+				continue
+			}
+
+			if setOK {
 				if err := r.store.TitlesTable.Insert(map[string]interface{}{
 					"title_id": titleID,
 					"name":     link.Title,
@@ -106,28 +114,33 @@ func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 					log.Printf("[RawDataHandler] Failed to insert title '%s': %v", link.Title, err)
 					continue
 				}
-				// Save to cache
-				r.store.RedisClient.GetClient().Set(context.Background(), titleCacheKey, titleID, 0)
-			} else if err != nil {
-				log.Printf("[RawDataHandler] Redis error: %v", err)
+			} else {
+				// Already exists → use cached ID
+				id, _ := r.store.RedisClient.GetClient().Get(ctx, titleCacheKey).Result()
+				titleID = id
+			}
+
+			// --- Build relationship (also atomic) ---
+			pairCacheKey := fmt.Sprintf("pair:%s:%s", data.TitleQ.ID, titleID)
+			pairID := uuid.New().String()
+
+			setOK, err = r.store.RedisClient.GetClient().
+				SetNX(ctx, pairCacheKey, pairID, 0).Result()
+			if err != nil {
+				log.Printf("[RawDataHandler] Redis SETNX error (pair): %v", err)
 				continue
 			}
 
-			// Build and cache relationship
-			pairCacheKey := fmt.Sprintf("pair:%s:%s", data.TitleQ.ID, titleID)
-			exists, _ := r.store.RedisClient.GetClient().Exists(context.Background(), pairCacheKey).Result()
-			if exists == 0 {
-				pairID := uuid.New().String()
+			if setOK {
 				if err := r.store.PairsTable.Insert(map[string]interface{}{
 					"pair_id":   pairID,
 					"title_src": data.TitleQ.ID,
 					"title_dst": titleID,
 				}); err != nil {
-					log.Printf("[RawDataHandler] Failed to insert pair (%s → %s): %v", data.TitleQ.Title, link.Title, err)
+					log.Printf("[RawDataHandler] Failed to insert pair (%s → %s): %v",
+						data.TitleQ.Title, link.Title, err)
 					continue
 				}
-				// Cache the pair
-				r.store.RedisClient.GetClient().Set(context.Background(), pairCacheKey, pairID, 0)
 			}
 		}
 	}
