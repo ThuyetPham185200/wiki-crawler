@@ -1,28 +1,38 @@
 package infra
 
 import (
+	dbclient "wikicrawler/internal/infra/postgresclient"
+	"wikicrawler/internal/infra/postgresclient/tables"
+	"wikicrawler/internal/infra/redisclient"
 	"wikicrawler/internal/model"
 	"wikicrawler/internal/utils/file"
 )
 
 type WikiStore struct {
-	TitlsToQueryQ   chan string
-	FilteredTitlesQ chan string
-	FilteredPairsQ  chan model.TitlesPair
-	RawDataQ        chan model.WikiLinksResponse
+	TitlsToQueryQ chan model.TitleQuery
+	RawDataQ      chan model.RawDataWiki
+	DBclient      *dbclient.PostgresClient
+	RedisClient   *redisclient.RedisClient
+	TitlesTable   *tables.TitlesTable
+	PairsTable    *tables.PairsTable
 }
 
-func NewWikiStore(datapath string) *WikiStore {
+func NewWikiStore(datapath string, cfg dbclient.PostGresConfig, rcfg redisclient.RedisConfig) *WikiStore {
 	w := &WikiStore{}
-	w.TitlsToQueryQ = make(chan string)
+	db := dbclient.NewPostgresClient(cfg)
+	w.DBclient = db
+	w.PairsTable = tables.NewPairsTable(db)
+	w.TitlesTable = tables.NewTitlesTable(db)
+	w.RedisClient = redisclient.InitSingleton(rcfg)
+	w.TitlsToQueryQ = make(chan model.TitleQuery)
 	if titles, err := file.ReadTextFile(datapath); err == nil {
 		for _, e := range titles {
-			w.TitlsToQueryQ <- e
+			w.TitlsToQueryQ <- model.TitleQuery{
+				Title: e,
+			}
 		}
 	}
 
-	w.FilteredTitlesQ = make(chan string)
-	w.RawDataQ = make(chan model.WikiLinksResponse)
-	w.FilteredPairsQ = make(chan model.TitlesPair)
+	w.RawDataQ = make(chan model.RawDataWiki)
 	return w
 }

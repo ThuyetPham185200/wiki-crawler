@@ -26,6 +26,16 @@ type WikiLinksResponse struct {
 	} `json:"limits"`
 }
 
+type RawDataWiki struct {
+	TitleQ   TitleQuery
+	LinksRes WikiLinksResponse
+}
+
+type TitleQuery struct {
+	Title string
+	ID    string
+}
+
 type TitlesPair struct {
 	Src  string
 	Dest string

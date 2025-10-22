@@ -37,9 +37,9 @@ func (a *APIClient) RunningTask() {
 		var requestURL string
 
 		if plcontinue != "" {
-			requestURL = a.api.URLwithTitleAndPLcontinue(url.QueryEscape(title), url.QueryEscape(plcontinue))
+			requestURL = a.api.URLwithTitleAndPLcontinue(url.QueryEscape(title.Title), url.QueryEscape(plcontinue))
 		} else {
-			requestURL = a.api.URLwithTitle(url.QueryEscape(title))
+			requestURL = a.api.URLwithTitle(url.QueryEscape(title.Title))
 		}
 
 		res, err := a.makeRequestWithRetry(requestURL)
@@ -60,7 +60,10 @@ func (a *APIClient) RunningTask() {
 			return
 		}
 
-		a.store.RawDataQ <- result
+		a.store.RawDataQ <- model.RawDataWiki{
+			TitleQ:   title,
+			LinksRes: result,
+		}
 
 		if result.Continue.Plcontinue == "" {
 			break
