@@ -22,18 +22,22 @@ type APIClient struct {
 }
 
 func NewAPIClient(store *infra.WikiStore, Timeout, IdleConnTimeout time.Duration, MaxIdleConns, MaxIdleConnsPerHost int) *APIClient {
-	return &APIClient{
+	s := &APIClient{
 		store:   store,
 		api:     api.NewWikiAPI(),
 		fetcher: rawdatafetcher.NewRawDataFetcher(Timeout, IdleConnTimeout, MaxIdleConns, MaxIdleConnsPerHost),
 	}
+	s.Init(s)
+	return s
 }
 
 func (a *APIClient) RunningTask() {
+
 	title := <-a.store.TitlsToQueryQ
 	var plcontinue string
 
 	for {
+
 		var requestURL string
 
 		if plcontinue != "" {
@@ -59,6 +63,7 @@ func (a *APIClient) RunningTask() {
 			fmt.Printf("[APIClient] Failed to decode JSON for %s: %v\n", title, err)
 			return
 		}
+		//fmt.Println(result)
 
 		a.store.RawDataQ <- model.RawDataWiki{
 			TitleQ:   title,
@@ -75,7 +80,7 @@ func (a *APIClient) RunningTask() {
 func (a *APIClient) makeRequestWithRetry(url string) (*http.Response, error) {
 	maxRetries := 3
 	baseDelay := 1 * time.Second
-
+	fmt.Printf("[APIClient] url = %s\n", url)
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		res, err := a.fetcher.GetRawData(url)
 

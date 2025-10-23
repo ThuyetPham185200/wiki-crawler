@@ -26,18 +26,23 @@ func NewWikiCrawlerApp() *App {
 }
 
 func (a *App) Start() {
-	if err := a.apiclient.Start(); err != nil {
-		fmt.Printf("[WikiCrawlerApp] Failed to start apiclient: %v\n", err)
-		return
-	}
 	if err := a.cdc.Open(); err != nil {
 		fmt.Printf("[WikiCrawlerApp] Failed to open CDC: %v\n", err)
 		return
 	}
+	time.Sleep(2 * time.Second)
+
+	if err := a.apiclient.Start(); err != nil {
+		fmt.Printf("[WikiCrawlerApp] Failed to start apiclient: %v\n", err)
+		return
+	}
+
+	time.Sleep(2 * time.Second)
 	if err := a.datahandler.Start(); err != nil {
 		fmt.Printf("[WikiCrawlerApp] Failed to start rawdatahandler: %v\n", err)
 		return
 	}
+
 }
 
 func (a *App) Stop() {

@@ -40,12 +40,13 @@ func NewCDCManager(cfgcd *cdc.CDCConfig,
 }
 
 func (c *CDCManager) Open() error {
-	c.cdcclient.RegisterHandler(c.msgHandler)
 	for name, producer := range c.producers {
 		if err := producer.Open(); err != nil {
 			return fmt.Errorf("[CDCManager] failed to open producer %s: %w", name, err)
 		}
 	}
+
+	c.cdcclient.RegisterHandler(c.msgHandler)
 
 	if err := c.cdcclient.Open(); err != nil {
 		return err
@@ -126,12 +127,12 @@ func (c *CDCManager) onNewDBEvent(op string, rel *pglogrepl.RelationMessage, tup
 	}
 
 	// Log to console for debug
-	fmt.Printf("CDC Event: %+v\n", dbevent)
+	fmt.Printf("[CDCManager] CDC Event: %+v\n", dbevent)
 
 	// Marshal to JSON
 	data, err := json.Marshal(dbevent)
 	if err != nil {
-		fmt.Printf("Error marshalling DBEvent: %v\n", err)
+		fmt.Printf("[CDCManager] Error marshalling DBEvent: %v\n", err)
 		return
 	}
 

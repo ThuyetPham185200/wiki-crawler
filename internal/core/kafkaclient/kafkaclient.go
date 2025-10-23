@@ -38,8 +38,13 @@ func (p *KafkaProducer) Init(config any) error {
 }
 
 func (p *KafkaProducer) Open() error {
+	if p == nil || p.config.BootstrapServers == "" {
+		return fmt.Errorf("[KafkaProducer] invalid producer config or not initialized")
+	}
+
 	configMap := &kafka.ConfigMap{
 		"bootstrap.servers": p.config.BootstrapServers,
+		//"debug":             "all",
 	}
 
 	// Merge extra configs if provided
@@ -55,6 +60,7 @@ func (p *KafkaProducer) Open() error {
 	}
 
 	prod, err := kafka.NewProducer(configMap)
+
 	if err != nil {
 		return fmt.Errorf("[KafkaProducer] failed to create producer: %w", err)
 	}

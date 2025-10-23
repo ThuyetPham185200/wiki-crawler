@@ -24,6 +24,7 @@ func NewRawDataHandler(store *infra.WikiStore, nworkers, ntasks int) *RawDataHan
 	r := &RawDataHandler{}
 	r.workerPool = workers.NewWorkerPool(nworkers, ntasks)
 	r.store = store
+	r.Init(r)
 	return r
 }
 
