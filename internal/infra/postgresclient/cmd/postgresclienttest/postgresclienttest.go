@@ -13,7 +13,7 @@ func main() {
 		Port:     "5432",      // Port
 		User:     "taopq",     // user_name
 		Password: "123456a@",  // password
-		DBname:   "mydb",      // db
+		DBname:   "wikidb",    // db
 	})
 	defer client.Close()
 	////////////////////////////////////////////////////////////////////////////////////

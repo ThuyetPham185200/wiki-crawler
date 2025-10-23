@@ -16,25 +16,43 @@ type BaseTable struct {
 // CreateTable tạo bảng dựa trên metadata
 func (bt *BaseTable) CreateTable() {
 	var cols []string
+	var postQueries []string // Store CREATE INDEX or ALTER TABLE queries
+
+	// Collect column definitions
 	for col, typ := range bt.Columns {
 		cols = append(cols, fmt.Sprintf("%s %s", col, typ))
 	}
 
-	allDefs := cols
-	if len(bt.Constraints) > 0 {
-		allDefs = append(allDefs, bt.Constraints...)
+	// Separate inline constraints (foreign keys, unique, etc.) from post-create queries
+	for _, c := range bt.Constraints {
+		cTrim := strings.TrimSpace(strings.ToUpper(c))
+		if strings.HasPrefix(cTrim, "CREATE INDEX") ||
+			strings.HasPrefix(cTrim, "ALTER TABLE") {
+			postQueries = append(postQueries, c)
+		} else {
+			cols = append(cols, c)
+		}
 	}
 
-	query := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (%s)`,
+	// Create table
+	query := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (%s);`,
 		bt.TableName,
-		strings.Join(allDefs, ", "),
+		strings.Join(cols, ", "),
 	)
 
-	_, err := bt.Client.DB.Exec(query)
-	if err != nil {
+	if _, err := bt.Client.DB.Exec(query); err != nil {
 		log.Fatalf("❌ Lỗi tạo bảng %s: %v", bt.TableName, err)
 	}
 	log.Printf("✅ Bảng %s sẵn sàng.", bt.TableName)
+
+	// Execute post-create queries (indexes, alter table, etc.)
+	for _, q := range postQueries {
+		if _, err := bt.Client.DB.Exec(q); err != nil {
+			log.Printf("⚠️ Không thể thực thi truy vấn sau tạo bảng (%s): %v", q, err)
+		} else {
+			log.Printf("✅ Đã thực thi truy vấn sau tạo bảng: %s", q)
+		}
+	}
 }
 
 // Insert thêm dữ liệu vào bảng

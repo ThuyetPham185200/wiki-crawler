@@ -46,6 +46,7 @@ func InitSingleton(cfg RedisConfig) *RedisClient {
 			client: rdb,
 		}
 	})
+
 	return instance
 }
 

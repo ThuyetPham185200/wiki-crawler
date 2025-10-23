@@ -40,3 +40,10 @@ type TitlesPair struct {
 	Src  string
 	Dest string
 }
+
+type DBEvent struct {
+	DBName string      `json:"db_name"`
+	DBID   uint32      `json:"db_id"`
+	CMD    string      `json:"cmd"`
+	Data   interface{} `json:"data"`
+}

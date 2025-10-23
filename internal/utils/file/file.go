@@ -23,6 +23,7 @@ func ReadTextFile(filePath string) ([]string, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading file %s: %w", filePath, err)
 	}
+	fmt.Printf("[ReadTextFile] done to read file!\n")
 
 	return lines, nil
 }

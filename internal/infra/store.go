@@ -17,14 +17,15 @@ type WikiStore struct {
 	PairsTable    *tables.PairsTable
 }
 
-func NewWikiStore(datapath string, cfg dbclient.PostGresConfig, rcfg redisclient.RedisConfig) *WikiStore {
+func NewWikiStore(datapath string, cfg dbclient.PostGresConfig, rcfg redisclient.RedisConfig, RawDataQCap, TitlsToQueryQCap int) *WikiStore {
 	w := &WikiStore{}
 	db := dbclient.NewPostgresClient(cfg)
 	w.DBclient = db
 	w.PairsTable = tables.NewPairsTable(db)
 	w.TitlesTable = tables.NewTitlesTable(db)
 	w.RedisClient = redisclient.InitSingleton(rcfg)
-	w.TitlsToQueryQ = make(chan model.TitleQuery)
+	w.TitlsToQueryQ = make(chan model.TitleQuery, TitlsToQueryQCap)
+
 	if titles, err := file.ReadTextFile(datapath); err == nil {
 		for _, e := range titles {
 			w.TitlsToQueryQ <- model.TitleQuery{
@@ -33,6 +34,6 @@ func NewWikiStore(datapath string, cfg dbclient.PostGresConfig, rcfg redisclient
 		}
 	}
 
-	w.RawDataQ = make(chan model.RawDataWiki)
+	w.RawDataQ = make(chan model.RawDataWiki, RawDataQCap)
 	return w
 }

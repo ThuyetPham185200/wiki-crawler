@@ -50,22 +50,23 @@ func (r *RawDataHandler) RunningTask() {
 	ok := r.workerPool.Tasks.Push(task)
 	if !ok {
 		fmt.Printf("[RawDataHandler] failed to queue data handle task\n")
+		time.Sleep(10 * time.Millisecond)
 	}
 	elapsed := time.Since(start)
-	if elapsed < 10*time.Millisecond {
-		time.Sleep(10*time.Millisecond - elapsed)
+	if elapsed < 2*time.Millisecond {
+		time.Sleep(2*time.Millisecond - elapsed)
 	}
 }
 func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 	ctx := context.Background()
 	result := data.LinksRes
-
+	client := r.store.RedisClient.GetClient()
 	// --- Ensure source title exists (atomic with SETNX) ---
 	if data.TitleQ.ID == "" {
 		data.TitleQ.ID = uuid.New().String()
 		cacheKey := "title:" + data.TitleQ.Title
 
-		setOK, err := r.store.RedisClient.GetClient().
+		setOK, err := client.
 			SetNX(ctx, cacheKey, data.TitleQ.ID, 0).Result()
 		if err != nil {
 			log.Printf("[RawDataHandler] Redis SETNX error for %s: %v", cacheKey, err)
@@ -83,7 +84,7 @@ func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 			}
 		} else {
 			// Key existed → get the stored ID
-			id, _ := r.store.RedisClient.GetClient().Get(ctx, cacheKey).Result()
+			id, _ := client.Get(ctx, cacheKey).Result()
 			data.TitleQ.ID = id
 		}
 	}
@@ -99,7 +100,7 @@ func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 			titleID := uuid.New().String()
 
 			// Atomic create title if not exists
-			setOK, err := r.store.RedisClient.GetClient().
+			setOK, err := client.
 				SetNX(ctx, titleCacheKey, titleID, 0).Result()
 			if err != nil {
 				log.Printf("[RawDataHandler] Redis SETNX error: %v", err)
@@ -114,9 +115,16 @@ func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 					log.Printf("[RawDataHandler] Failed to insert title '%s': %v", link.Title, err)
 					continue
 				}
+
+				// push to title query queue for new request
+				r.store.TitlsToQueryQ <- model.TitleQuery{
+					Title: link.Title,
+					ID:    titleID,
+				}
+
 			} else {
 				// Already exists → use cached ID
-				id, _ := r.store.RedisClient.GetClient().Get(ctx, titleCacheKey).Result()
+				id, _ := client.Get(ctx, titleCacheKey).Result()
 				titleID = id
 			}
 
@@ -124,7 +132,7 @@ func (r *RawDataHandler) rawdataHandler(data model.RawDataWiki) {
 			pairCacheKey := fmt.Sprintf("pair:%s:%s", data.TitleQ.ID, titleID)
 			pairID := uuid.New().String()
 
-			setOK, err = r.store.RedisClient.GetClient().
+			setOK, err = client.
 				SetNX(ctx, pairCacheKey, pairID, 0).Result()
 			if err != nil {
 				log.Printf("[RawDataHandler] Redis SETNX error (pair): %v", err)
