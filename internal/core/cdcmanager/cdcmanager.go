@@ -71,7 +71,7 @@ func (c *CDCManager) msgHandler(logicalMsg pglogrepl.Message) {
 
 	case *pglogrepl.RelationMessage:
 		c.relationStore[m.RelationID] = m
-		fmt.Printf("🧩 Relation cached: %s.%s (cols: %d)\n",
+		fmt.Printf("🧩[CDCManager] Relation cached: %s.%s (cols: %d)\n",
 			m.Namespace, m.RelationName, len(m.Columns))
 
 	case *pglogrepl.InsertMessage:
@@ -104,6 +104,7 @@ func (c *CDCManager) msgHandler(logicalMsg pglogrepl.Message) {
 }
 
 func (c *CDCManager) onNewDBEvent(op string, rel *pglogrepl.RelationMessage, tuple *pglogrepl.TupleData) {
+
 	if rel == nil || tuple == nil {
 		return
 	}

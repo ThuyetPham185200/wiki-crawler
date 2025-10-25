@@ -55,7 +55,7 @@ func (bt *BaseTable) CreateTable() {
 	}
 }
 
-// Insert thêm dữ liệu vào bảng
+// Insert thêm dữ liệu vào bảng, an toàn với duplicate key
 func (bt *BaseTable) Insert(values map[string]interface{}) error {
 	cols := []string{}
 	vals := []interface{}{}
@@ -69,18 +69,21 @@ func (bt *BaseTable) Insert(values map[string]interface{}) error {
 		i++
 	}
 
-	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s)`,
+	// Build insert query (với ON CONFLICT DO NOTHING để tránh lỗi duplicate)
+	query := fmt.Sprintf(`INSERT INTO %s (%s) VALUES (%s) ON CONFLICT DO NOTHING`,
 		bt.TableName,
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "),
 	)
+
 	_, err := bt.Client.DB.Exec(query, vals...)
 	if err != nil {
 		log.Printf("❌ Lỗi insert vào %s: %v", bt.TableName, err)
-	} else {
-		log.Printf("✅ Insert thành công vào %s", bt.TableName)
+		return err
 	}
-	return err
+
+	log.Printf("✅ Insert (hoặc bỏ qua nếu trùng) thành công vào %s", bt.TableName)
+	return nil
 }
 
 // GetAll lấy tất cả dữ liệu trong table và trả về []map[string]interface{}
@@ -126,4 +129,50 @@ func (bt *BaseTable) GetAll() ([]map[string]interface{}, error) {
 	}
 
 	return results, nil
+}
+
+// GetRecordByKey lấy 1 bản ghi theo cột khóa (VD: id, name, ...)
+func (bt *BaseTable) GetRecordByKey(key string, value interface{}) (map[string]interface{}, error) {
+	query := fmt.Sprintf(`SELECT * FROM %s WHERE %s = $1 LIMIT 1`, bt.TableName, key)
+
+	row := bt.Client.DB.QueryRow(query, value)
+	cols, err := bt.Client.DB.Query(fmt.Sprintf(`SELECT column_name FROM information_schema.columns WHERE table_name='%s'`, bt.TableName))
+	if err != nil {
+		return nil, fmt.Errorf("❌ không thể lấy danh sách cột cho %s: %w", bt.TableName, err)
+	}
+	defer cols.Close()
+
+	var columnNames []string
+	for cols.Next() {
+		var name string
+		if err := cols.Scan(&name); err != nil {
+			return nil, err
+		}
+		columnNames = append(columnNames, name)
+	}
+
+	values := make([]interface{}, len(columnNames))
+	valuePtrs := make([]interface{}, len(columnNames))
+	for i := range columnNames {
+		valuePtrs[i] = &values[i]
+	}
+
+	// QueryRow.Scan needs exact number of columns known at compile time,
+	// so we dynamically scan based on metadata
+	if err := row.Scan(valuePtrs...); err != nil {
+		return nil, fmt.Errorf("❌ không tìm thấy record có %s = %v: %w", key, value, err)
+	}
+
+	record := make(map[string]interface{})
+	for i, col := range columnNames {
+		val := values[i]
+		if b, ok := val.([]byte); ok {
+			record[col] = string(b)
+		} else {
+			record[col] = val
+		}
+	}
+
+	log.Printf("✅ Lấy thành công record từ %s theo %s = %v", bt.TableName, key, value)
+	return record, nil
 }

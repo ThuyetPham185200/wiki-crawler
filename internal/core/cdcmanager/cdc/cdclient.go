@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 	"wikicrawler/internal/utils/processor"
 
@@ -54,11 +55,30 @@ func NewCDCClient(Cfg *CDCConfig) *CDCClient {
 }
 
 func (s *CDCClient) Open() error {
+	fmt.Printf("[CDCClient] Connecting to: %s\n", s.Config.ConnStr())
+
 	c, err := pgconn.Connect(context.Background(), s.Config.ConnStr())
 	if err != nil {
+
 		return err
 	}
 	s.PostGresConn = c
+
+	// Create slot if needed (skip if already done)
+	_, err = pglogrepl.CreateReplicationSlot(context.Background(),
+		s.PostGresConn, s.Config.Replication_slot, s.Config.OutputPlugin, pglogrepl.CreateReplicationSlotOptions{})
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
+		return err
+	}
+
+	pluginArgs := []string{"proto_version '1'", fmt.Sprintf("publication_names '%s'", s.Config.Publication)}
+	err = pglogrepl.StartReplication(context.Background(), s.PostGresConn, s.Config.Replication_slot, s.Config.Lsn, pglogrepl.StartReplicationOptions{PluginArgs: pluginArgs})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("[CDCClient] connected!\n")
+
 	return s.Start()
 }
 
@@ -97,10 +117,10 @@ func (s *CDCClient) RunningTask() {
 			},
 		)
 		if err != nil {
-			log.Printf("failed to send standby status update: %v", err)
+			log.Printf("[CDCClient] failed to send standby status update: %v", err)
 			return
 		}
-		log.Printf("[Heartbeat] confirmed up to LSN %s", s.Config.Lsn.String())
+		log.Printf("[[CDCClient] - Heartbeat] confirmed up to LSN %s", s.Config.Lsn.String())
 		s.lastPingTime = time.Now()
 	}
 
@@ -114,7 +134,7 @@ func (s *CDCClient) RunningTask() {
 		return
 	}
 	if err != nil {
-		log.Printf("error receiving message: %v", err)
+		log.Printf("[CDCClient] error receiving message: %v", err)
 		return
 	}
 
@@ -128,7 +148,7 @@ func (s *CDCClient) RunningTask() {
 			// “Hey, I’m alive, and here’s where my WAL stream currently is — do you still want me to continue sending data?”
 			serverMsg, err := pglogrepl.ParsePrimaryKeepaliveMessage(msg.Data[1:])
 			if err != nil {
-				log.Printf("failed to parse keepalive message: %v", err)
+				log.Printf("[CDCClient] failed to parse keepalive message: %v", err)
 				return
 			}
 			if serverMsg.ReplyRequested {
@@ -139,7 +159,7 @@ func (s *CDCClient) RunningTask() {
 					WALApplyPosition: s.Config.Lsn,
 				})
 				if err != nil {
-					log.Printf("failed to reply keepalive: %v", err)
+					log.Printf("[CDCClient] failed to reply keepalive: %v", err)
 				}
 			}
 
@@ -147,14 +167,14 @@ func (s *CDCClient) RunningTask() {
 			// --- 4. Parse logical replication WAL data ---
 			xlog, err := pglogrepl.ParseXLogData(msg.Data[1:])
 			if err != nil {
-				log.Printf("failed to parse xlog data: %v", err)
+				log.Printf("[CDCClient] failed to parse xlog data: %v", err)
 				return
 			}
 
 			// Decode logical message (INSERT / UPDATE / DELETE)
 			logicalMsg, err := pglogrepl.Parse(xlog.WALData)
 			if err != nil {
-				log.Printf("failed to parse logical msg: %v", err)
+				log.Printf("[CDCClient] failed to parse logical msg: %v", err)
 				return
 			}
 
@@ -164,6 +184,6 @@ func (s *CDCClient) RunningTask() {
 			//log.Printf("[Advance LSN] now at %s", s.Config.Lsn.String())
 		}
 	default:
-		log.Printf("unexpected message: %T", msg)
+		log.Printf("[CDCClient] unexpected message: %T", msg)
 	}
 }

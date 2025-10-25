@@ -21,6 +21,7 @@ func NewTitlesTable(client *dbclient.PostgresClient) *TitlesTable {
 			},
 			Constraints: []string{
 				"UNIQUE (name)",
+				"CREATE INDEX IF NOT EXISTS idx_titles_name ON titles (name)",
 			},
 		},
 	}

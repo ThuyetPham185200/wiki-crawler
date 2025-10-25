@@ -62,6 +62,10 @@ func (q *TaskQueue) TryPop(timeout time.Duration) *Task {
 	}
 }
 
+func (q *TaskQueue) Size() int {
+	return len(q.Tasks)
+}
+
 func (q *TaskQueue) Close() {
 	close(q.Tasks)
 }
