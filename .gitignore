@@ -1,0 +1,33 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go build output (executables)
+*.out
+*.o
+
+# Build directories
+/bin/
+/build/
+/dist/
+/out/
+
+# Dependency directories (if using vendoring)
+vendor/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Coverage and test output
+coverage.out
+*.coverprofile

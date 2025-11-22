@@ -38,29 +38,22 @@ func (p *KafkaProducer) Init(config any) error {
 }
 
 func (p *KafkaProducer) Open() error {
-	if p == nil || p.config.BootstrapServers == "" {
-		return fmt.Errorf("[KafkaProducer] invalid producer config or not initialized")
-	}
-
 	configMap := &kafka.ConfigMap{
 		"bootstrap.servers": p.config.BootstrapServers,
-		//"debug":             "all",
 	}
 
 	// Merge extra configs if provided
 	fmt.Printf("[KafkaProducer] Kafka producer configuration:\n")
-	if p.config.ExtraConfig != nil {
-		for key, value := range p.config.ExtraConfig {
-			if err := configMap.SetKey(key, value); err != nil {
-				fmt.Printf("[KafkaProducer] Warning: failed to set extra config %s=%s: %v\n", key, value, err)
-			} else {
-				fmt.Printf("     %s : %s\n", key, value)
-			}
+	fmt.Printf("     bootstrap.servers : %s\n", p.config.BootstrapServers)
+	for key, value := range p.config.ExtraConfig {
+		if err := configMap.SetKey(key, value); err != nil {
+			fmt.Printf("Warning: failed to set extra config %s=%s: %v\n", key, value, err)
+		} else {
+			fmt.Printf("     %s : %s\n", key, value)
 		}
 	}
 
 	prod, err := kafka.NewProducer(configMap)
-
 	if err != nil {
 		return fmt.Errorf("[KafkaProducer] failed to create producer: %w", err)
 	}
@@ -73,7 +66,7 @@ func (p *KafkaProducer) Close() error {
 	if p.producer != nil {
 		p.producer.Flush(15 * 1000)
 		p.producer.Close()
-		fmt.Println("Kafka producer closed")
+		fmt.Println("[KafkaProducer] Kafka producer closed")
 	}
 	return nil
 }
@@ -90,7 +83,7 @@ func (p *KafkaProducer) SendMsg(data []byte) error {
 	}, nil)
 
 	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
+		return fmt.Errorf("[KafkaProducer] failed to send message: %w", err)
 	}
 
 	return nil
@@ -99,7 +92,7 @@ func (p *KafkaProducer) SendMsg(data []byte) error {
 // SendMsg sends a raw []byte message to Kafka and waits for delivery confirmation
 func (p *KafkaProducer) Push(data []byte) error {
 	if p.producer == nil {
-		return fmt.Errorf("producer not initialized or opened")
+		return fmt.Errorf("[KafkaProducer] producer not initialized or opened")
 	}
 
 	deliveryChan := make(chan kafka.Event, 1)
@@ -111,7 +104,7 @@ func (p *KafkaProducer) Push(data []byte) error {
 
 	if err != nil {
 		close(deliveryChan)
-		return fmt.Errorf("failed to send message: %w", err)
+		return fmt.Errorf("[KafkaProducer] failed to send message: %w", err)
 	}
 
 	// Wait for delivery report
@@ -120,10 +113,10 @@ func (p *KafkaProducer) Push(data []byte) error {
 	close(deliveryChan)
 
 	if m.TopicPartition.Error != nil {
-		return fmt.Errorf("delivery failed: %v", m.TopicPartition.Error)
+		return fmt.Errorf("[KafkaProducer] delivery failed: %v", m.TopicPartition.Error)
 	}
 
-	fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+	fmt.Printf("[KafkaProducer] Delivered message to topic %s [%d] at offset %v\n",
 		*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 
 	return nil
@@ -138,10 +131,10 @@ type KafkaConsumer struct {
 func (c *KafkaConsumer) Init(config any) error {
 	cfg, ok := config.(KafkaConfig)
 	if !ok {
-		return fmt.Errorf("invalid config type for consumer")
+		return fmt.Errorf("[KafkaConsumer] invalid config type for consumer")
 	}
 	if cfg.BootstrapServers == "" || cfg.Topic == "" {
-		return fmt.Errorf("missing required consumer config fields")
+		return fmt.Errorf("[KafkaConsumer] missing required consumer config fields")
 	}
 	c.config = cfg
 	return nil
@@ -153,10 +146,11 @@ func (c *KafkaConsumer) Open() error {
 		"bootstrap.servers": c.config.BootstrapServers,
 	}
 
-	fmt.Printf("Kafka consumer configuration:\n")
+	fmt.Printf("[KafkaConsumer] Kafka consumer configuration:\n")
+	fmt.Printf("     bootstrap.servers : %s\n", c.config.BootstrapServers)
 	for key, value := range c.config.ExtraConfig {
 		if err := configMap.SetKey(key, value); err != nil {
-			fmt.Printf("Warning: failed to set extra config %s=%s: %v\n", key, value, err)
+			fmt.Printf("[KafkaConsumer] Warning: failed to set extra config %s=%s: %v\n", key, value, err)
 		} else {
 			fmt.Printf("     %s : %s\n", key, value)
 		}
@@ -172,21 +166,21 @@ func (c *KafkaConsumer) Open() error {
 	}
 
 	c.consumer = cons
-	fmt.Printf("Kafka consumer subscribed to: %s\n", c.config.Topic)
+	fmt.Printf("[KafkaConsumer] Kafka consumer subscribed to: %s\n", c.config.Topic)
 	return nil
 }
 
 func (c *KafkaConsumer) Close() error {
 	if c.consumer != nil {
 		c.consumer.Close()
-		fmt.Println("Kafka consumer closed")
+		fmt.Println("[KafkaConsumer] Kafka consumer closed")
 	}
 	return nil
 }
 
 func (c *KafkaConsumer) ReadMsg(timeout time.Duration) ([]byte, error) {
 	if c.consumer == nil {
-		return nil, fmt.Errorf("consumer not initialized or opened")
+		return nil, fmt.Errorf("[KafkaConsumer] consumer not initialized or opened")
 	}
 
 	msg, err := c.consumer.ReadMessage(timeout)
@@ -195,10 +189,10 @@ func (c *KafkaConsumer) ReadMsg(timeout time.Duration) ([]byte, error) {
 		if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() == kafka.ErrTimedOut {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("read message error: %w", err)
+		return nil, fmt.Errorf("[KafkaConsumer]read message error: %w", err)
 	}
 
-	fmt.Printf("Received from partition %d offset %d: %s\n",
+	fmt.Printf("[KafkaConsumer] Received from partition %d offset %d: %s\n",
 		msg.TopicPartition.Partition, msg.TopicPartition.Offset, string(msg.Value))
 
 	return msg.Value, nil
@@ -206,7 +200,7 @@ func (c *KafkaConsumer) ReadMsg(timeout time.Duration) ([]byte, error) {
 
 func (c *KafkaConsumer) Poll(timeout time.Duration) ([]byte, error) {
 	if c.consumer == nil {
-		return nil, fmt.Errorf("consumer not initialized or opened")
+		return nil, fmt.Errorf("[KafkaConsumer] consumer not initialized or opened")
 	}
 
 	ev := c.consumer.Poll(int(timeout.Milliseconds()))
@@ -219,7 +213,7 @@ func (c *KafkaConsumer) Poll(timeout time.Duration) ([]byte, error) {
 		return e.Value, nil
 
 	case kafka.Error:
-		return nil, fmt.Errorf("kafka error: %v", e)
+		return nil, fmt.Errorf("[KafkaConsumer] kafka error: %v", e)
 
 	default:
 		// Ignore other events like stats, partition assignments, etc.

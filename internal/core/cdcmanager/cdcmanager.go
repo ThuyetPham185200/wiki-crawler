@@ -137,10 +137,11 @@ func (c *CDCManager) onNewDBEvent(op string, rel *pglogrepl.RelationMessage, tup
 		return
 	}
 
+	fmt.Println(data)
 	// Send event (e.g., to Kafka)
-	if producer, ok := c.producers[rel.RelationName]; ok && producer != nil {
-		producer.Push(data)
-	} else {
-		fmt.Printf("[CDCManager] No producer found for relation: %s\n", rel.RelationName)
-	}
+	// if producer, ok := c.producers[rel.RelationName]; ok && producer != nil {
+	// 	producer.Push(data)
+	// } else {
+	// 	fmt.Printf("[CDCManager] No producer found for relation: %s\n", rel.RelationName)
+	// }
 }

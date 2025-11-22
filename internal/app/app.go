@@ -29,18 +29,24 @@ func (a *App) Start() {
 	if err := a.cdc.Open(); err != nil {
 		fmt.Printf("[WikiCrawlerApp] Failed to open CDC: %v\n", err)
 		return
+	} else {
+		fmt.Printf("[WikiCrawlerApp] CDC opened successfully\n")
 	}
 	time.Sleep(2 * time.Second)
 
 	if err := a.apiclient.Start(); err != nil {
 		fmt.Printf("[WikiCrawlerApp] Failed to start apiclient: %v\n", err)
 		return
+	} else {
+		fmt.Printf("[WikiCrawlerApp] apiclient started successfully\n")
 	}
 
 	time.Sleep(2 * time.Second)
 	if err := a.datahandler.Start(); err != nil {
 		fmt.Printf("[WikiCrawlerApp] Failed to start rawdatahandler: %v\n", err)
 		return
+	} else {
+		fmt.Printf("[WikiCrawlerApp] rawdatahandler started successfully\n")
 	}
 
 }
@@ -59,12 +65,12 @@ func (a *App) Stop() {
 
 // ///////////////////////////////////////////////////////////////////////////////////////
 func (a *App) init() {
-	datapath := "../../data/seed_names.txt"
+	datapath := "./data/seed_names.txt"
 	cfg := dbclient.PostGresConfig{
 		Host:     "localhost", // IP
 		Port:     "5432",      // Port
-		User:     "taopq",     // user_name
-		Password: "123456a@",  // password
+		User:     "erduser",   // user_name
+		Password: "erdp@ss",   // password
 		DBname:   "wikidb",    // db
 	}
 	rcfg := redisclient.RedisConfig{
@@ -73,14 +79,14 @@ func (a *App) init() {
 		DB:       2, // Logical database index (Redis has 16 by default: 0–15).
 	}
 
-	RawDataQCap := 100
-	TitlsToQueryQCap := 100
+	RawDataQCap := 1000
+	TitlsToQueryQCap := 1000
 	store := infra.NewWikiStore(datapath, cfg, rcfg, RawDataQCap, TitlsToQueryQCap)
-	a.apiclient = apiclient.NewAPIClient(store, 30*time.Second, 90*time.Second, 100, 10)
+	a.apiclient = apiclient.NewAPIClient(store, 30*time.Second, 90*time.Second, 10000, 10)
 
 	cfgcd := &cdc.CDCConfig{
 		Replicator:       "replicator",
-		Psw:              "123456a@",
+		Psw:              "erdp@ss",
 		Address:          "localhost:5432",
 		DB:               "wikidb",
 		Replication_slot: "wikidb_slot",
