@@ -63,7 +63,7 @@ func (a *APIClient) RunningTask() {
 			fmt.Printf("[APIClient] Failed to decode JSON for %s: %v\n", title, err)
 			return
 		}
-		fmt.Println(result)
+		//fmt.Println(result)
 
 		a.store.RawDataQ <- model.RawDataWiki{
 			TitleQ:   title,
