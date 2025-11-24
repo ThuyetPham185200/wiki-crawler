@@ -8,3 +8,32 @@ Taylor Swift
 Elon Musk
 Vladimir Vladimirovich Putin
 Nguyễn Phú Trọng
+
+ca sĩ
+diễn viên
+nhà thơ
+nhà văn
+cầu thủ đá bóng
+vận động viên
+doanh nhân 
+nhà khoa học
+các vị vua thời phong kiến
+chính trị gia, Chính khách Việt Nam
+sự kiện chiến tranh
+sự kiện am nhac, văn hóa, thể thao
+danh lam thắng cảnh, tỉnh/thành phố
+
+
+- tìm kĩ Có bao nhiêu ca sĩ trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu diễn viên trẻ, già  theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu nhà thơ ,nhà văn trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu vận động the thao viên trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu doanh nhân trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu nhà khoa học trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu vị vua thời phong kiến trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu chính trị gia, Chính khách Việt Nam trẻ, già theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu sự kiện chiến tranh nổi tiếng theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu sự kiện am nhac, văn hóa, thể thao theo title wiki bắt đẩu bằng chữ A
+- tìm kĩ Có bao nhiêu danh lam thắng cảnh, tỉnh/thành phố theo title wiki bắt đẩu bằng chữ A
+
+Liệt kê theo form json
