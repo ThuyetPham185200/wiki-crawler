@@ -26,6 +26,7 @@ func NewWikiCrawlerApp() *App {
 }
 
 func (a *App) Start() {
+	fmt.Printf("[WikiCrawlerApp]")
 	if err := a.cdc.Open(); err != nil {
 		fmt.Printf("[WikiCrawlerApp] Failed to open CDC: %v\n", err)
 		return
@@ -65,7 +66,7 @@ func (a *App) Stop() {
 
 // ///////////////////////////////////////////////////////////////////////////////////////
 func (a *App) init() {
-	datapath := "./data/seed_names.txt"
+	datapath := "./data/thai_binh_data.json"
 	cfg := dbclient.PostGresConfig{
 		Host:     "localhost", // IP
 		Port:     "5432",      // Port
@@ -82,6 +83,8 @@ func (a *App) init() {
 	RawDataQCap := 1000
 	TitlsToQueryQCap := 1000
 	store := infra.NewWikiStore(datapath, cfg, rcfg, RawDataQCap, TitlsToQueryQCap)
+	fmt.Printf("dkdkdkdkdkdkdkdkdd\n")
+
 	a.apiclient = apiclient.NewAPIClient(store, 30*time.Second, 90*time.Second, 10000, 10)
 
 	cfgcd := &cdc.CDCConfig{

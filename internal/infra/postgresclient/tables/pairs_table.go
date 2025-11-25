@@ -25,7 +25,8 @@ func NewPairsTable(client *dbclient.PostgresClient) *PairsTable {
 			Constraints: []string{
 				"FOREIGN KEY (title_src) REFERENCES titles(title_id)",
 				"FOREIGN KEY (title_dst) REFERENCES titles(title_id)",
-				// ✅ Fixed index table name and columns
+				"CONSTRAINT uniq_src_dst UNIQUE (title_src, title_dst)",
+
 				"CREATE INDEX IF NOT EXISTS idx_pairs_src_dst ON pairs (title_src, title_dst)",
 			},
 		},

@@ -2,6 +2,7 @@ package file
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -26,4 +27,35 @@ func ReadTextFile(filePath string) ([]string, error) {
 	fmt.Printf("[ReadTextFile] done to read file!\n")
 
 	return lines, nil
+}
+
+// ReadJsonFile đọc file JSON và trả về map[string]any
+func ReadJsonFile(filePath string) (map[string]any, error) {
+	// Đọc toàn bộ nội dung file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse JSON
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func ReadJsonArrayFile(filePath string) ([]any, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

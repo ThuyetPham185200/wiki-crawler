@@ -12,7 +12,7 @@ type WiKiAPI struct {
 
 func NewWikiAPI() *WiKiAPI {
 	return &WiKiAPI{
-		baseURL: "https://en.wikipedia.org/w/api.php?action=query&prop=links&format=json&plnamespace=0&pllimit=max&titles=%s",
+		baseURL: "https://vi.wikipedia.org/w/api.php?action=query&prop=links&format=json&plnamespace=0&pllimit=max&titles=%s",
 	}
 }
 
